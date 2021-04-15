@@ -1,0 +1,45 @@
+{
+  "manifest_version": 2,
+  "name": "TimO Enhancer",
+  "description": "Enhance TimO, the almighty ERP solution",
+  "version": "0.0.1",
+  "author": "Matthes Rieke",
+  "background": {
+    "scripts": [
+      "background.js"
+    ],
+    "persistent": false
+  },
+  "page_action": {
+    "default_popup": "index.html",
+    "default_icon": {
+      "32": "icon_32.png",
+      "48": "icon_64.png",
+      "128": "icon_128.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "jquery-3.3.1.js",
+        "content.js"
+      ]
+    }
+  ],
+  "icons": {
+    "32": "icon_32.png",
+    "48": "icon_64.png",
+    "128": "icon_128.png"
+  },
+  "permissions": [
+    "storage",
+    "activeTab",
+    "declarativeContent",
+    "cookies",
+    "*://*.timo24.de/timo",
+    "*://*.timo24.de"
+  ]
+}
