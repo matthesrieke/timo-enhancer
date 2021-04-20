@@ -1,3 +1,22 @@
+/**
+ * Trigger change events for hidden inputs
+ */
+ MutationObserver = window.MutationObserver || window.WebKitMutationObserver;
+
+ var trackChange = function(element) {
+   var observer = new MutationObserver(function(mutations, observer) {
+     if(mutations[0].attributeName == "value") {
+         $(element).trigger("change");
+     }
+   });
+   observer.observe(element, {
+     attributes: true
+   });
+ }
+/**
+ * end: Trigger change events for hidden inputs
+ */
+
 var schedules = [];
 var sessionCookie = '';
 
@@ -22,10 +41,58 @@ var removeEnhanceAdjustments = function () {
     schedules.forEach(function (i) { clearInterval(i) });
 }
 
-var addExportButton = function () {
 
+var addExportButton = function (theIframe, cookie, from, to, projectId) {
+    var targetUrl = `https://testbed.dev.52north.org/timo-evaluation/alleProjekteMonat?JSESSIONID=${cookie}&start=${from.toISOString().split('T')[0]}&end=${to.toISOString().split('T')[0]}&projectId=${projectId}`
+    theIframe.contents().find('input[name="Button3_enhancer"]').remove();
+    theIframe.contents().find('input[type="button"]').each(function (index) {
+        var theButton = $(this);
+        if (theButton.attr('value') === 'Anwenden') {
+            var openTarget = `window.open('${targetUrl}', '_blank');`;
+            $(`<input type="button" name="Button3_enhancer" class="button enhancer-button" style="width : 445px; background-color: red; margin-left: 1em" value="Auswertung: Monat/Projekt/MA" onclick="${openTarget}">`).insertAfter(theButton);
+        }
+    });
 }
 
+var evaluateFormValues = function(theForm, theIframe) {
+    var from, to, projectId;
+    theForm.find('input').each(function (index) {
+        var input = $(this);
+        var pattern = /(\d{2})\.(\d{2})\.(\d{4})/;
+
+        if (input.attr('name') === 'fromDate') {
+            from = new Date(input.val().replace(pattern, '$3-$2-$1'));
+        }
+        else if (input.attr('name') === 'toDate') {
+            to = new Date(input.val().replace(pattern, '$3-$2-$1'));
+        }
+
+        projectId = -1;
+    });
+
+    if (from && to) {
+        console.log('Adding export button');
+        addExportButton(theIframe, sessionCookie, from, to, projectId);
+    } else {
+        console.log('From/To not found. Not adding export button');
+    }
+}
+
+var injectButton = function() {
+    setTimeout(function () {
+        $("iframe").each(function () {
+            var theIframe = $(this);
+            var theForm = theIframe.contents().find('form[name="auswertung"]');
+            theIframe.contents().find('form[name="auswertung"] input[type="hidden"]').each(function() {
+                trackChange( $(this)[0] );
+            });
+            theIframe.contents().find('form[name="auswertung"] input[type="hidden"]').change(function() {
+                evaluateFormValues(theForm, theIframe);
+            });
+            evaluateFormValues(theForm, theIframe);
+        });
+    }, 2500);
+}
 
 //message listener for background
 chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
@@ -54,34 +121,17 @@ window.onload = function () {
     });
 
     if (window.location.toString().indexOf('timo24.de')) {
+        // listen to changes
         $(window).on('hashchange', function (e) {
             if (window.location.hash.indexOf('auswertung_projektauswertung.jsp') > 0) {
-                addExportButton();
-                
-                $("iframe").each(function() {
-                    var from, to;
-
-                    $(this).contents().find('form[name="auswertung"] input').each(function(index){  
-                        var input = $(this);
-                        var pattern = /(\d{2})\.(\d{2})\.(\d{4})/;
-
-                        if (input.attr('name') === 'fromDate') {
-                            from = new Date(input.val().replace(pattern,'$3-$2-$1'));
-                        }
-                        else if (input.attr('name') === 'toDate') {
-                            to = new Date(input.val().replace(pattern,'$3-$2-$1'));
-                        }
-                        
-                    });
-                    
-                    if (from && to) {
-                        window.prompt('Copy and open:', `https://testbed.dev.52north.org/timo-evaluation/alleProjekteMonat?JSESSIONID=${sessionCookie}&start=${from.toISOString().split('T')[0]}&end=${to.toISOString().split('T')[0]}`)
-                    }
-                    
-                });
+                injectButton();
             }
         });
 
+        // check now
+        if (window.location.hash.indexOf('auswertung_projektauswertung.jsp') > 0) {
+            injectButton();
+        }
     }
 }
 

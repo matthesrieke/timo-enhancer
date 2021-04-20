@@ -12,7 +12,7 @@ enhanceBookingUi.onchange = function (element) {
 
   //update the extension storage value
   chrome.storage.sync.set({ 'timo_enhanceUi': value }, function () {
-    console.log('The value is ' + value);
+    console.log('timo_enhanceUi is ' + value);
   });
 
   //Pass init or remove message to content script 

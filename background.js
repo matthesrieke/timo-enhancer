@@ -1,5 +1,5 @@
 chrome.runtime.onInstalled.addListener(function () {
-  chrome.storage.sync.set({ hide: true }, function () {
+  chrome.storage.sync.set({ timo_enhanceUi: true }, function () {
     console.log("TimO Enhancer is on");
   });
 });
