@@ -17,6 +17,10 @@
  * end: Trigger change events for hidden inputs
  */
 
+var injectionLocationPatterns = [
+    'leistungsnachweis/leistungsnachweis.jsp',
+    'auswertung_projektauswertung.jsp'
+]
 var schedules = [];
 var sessionCookie = '';
 
@@ -54,7 +58,7 @@ var addExportButton = function (theIframe, cookie, from, to, projectId) {
     });
 }
 
-var evaluateFormValues = function(theForm, theIframe) {
+var evaluateAuswertungFormValues = function(theForm, theIframe) {
     var from, to, projectId;
     theForm.find('input').each(function (index) {
         var input = $(this);
@@ -78,18 +82,60 @@ var evaluateFormValues = function(theForm, theIframe) {
     }
 }
 
-var injectButton = function() {
+var extendAuswertungForm = function(theIframe) {
+    var theForm = theIframe.contents().find('form[name="auswertung"]');
+    theIframe.contents().find('form[name="auswertung"] input[type="hidden"]').each(function() {
+        trackChange( $(this)[0] );
+    });
+    theIframe.contents().find('form[name="auswertung"] input[type="hidden"]').change(function() {
+        evaluateAuswertungFormValues(theForm, theIframe);
+    });
+    evaluateAuswertungFormValues(theForm, theIframe);
+}
+
+var evaluateLeistungsnachweisValues = function(theForm, theIframe) {
+    var from, to, projectId;
+    theForm.find('input').each(function (index) {
+        var input = $(this);
+        var pattern = /(\d{2})\.(\d{2})\.(\d{4})/;
+
+        if (input.attr('name') === 'fromDate') {
+            from = new Date(input.val().replace(pattern, '$3-$2-$1'));
+        }
+        else if (input.attr('name') === 'toDate') {
+            to = new Date(input.val().replace(pattern, '$3-$2-$1'));
+        }
+
+        projectId = -1;
+    });
+
+    if (from && to) {
+        console.log('Adding export button');
+        addExportButton(theIframe, sessionCookie, from, to, projectId);
+    } else {
+        console.log('From/To not found. Not adding export button');
+    }
+}
+
+var extendLeistungsnachweisForm = function(theIframe) {
+    var neighborButton = theIframe.contents().find('a[onclick*="doDownload()"]');
+    var targetUrl = `https://testbed.dev.52north.org/timo-evaluation/leistungsnachweis?JSESSIONID=${sessionCookie}`
+    var content = `<td width="32" class="keindruck"><a href="${targetUrl}" target="_blank" class="jspToolbarButton" style="background: red">
+        <img src="../../../images/24x24/employee_capacity.png" alt="XLSX" title="XLSX" border="0">
+    </a></td>`
+    $(content).insertAfter(neighborButton.parent());
+
+    theIframe.on("load", function () {
+        extendLeistungsnachweisForm($(this));
+    });
+}
+
+var injectButtons = function() {
     setTimeout(function () {
         $("iframe").each(function () {
             var theIframe = $(this);
-            var theForm = theIframe.contents().find('form[name="auswertung"]');
-            theIframe.contents().find('form[name="auswertung"] input[type="hidden"]').each(function() {
-                trackChange( $(this)[0] );
-            });
-            theIframe.contents().find('form[name="auswertung"] input[type="hidden"]').change(function() {
-                evaluateFormValues(theForm, theIframe);
-            });
-            evaluateFormValues(theForm, theIframe);
+            extendAuswertungForm(theIframe);
+            extendLeistungsnachweisForm(theIframe);
         });
     }, 2500);
 }
@@ -120,17 +166,29 @@ window.onload = function () {
         }
     });
 
+
     if (window.location.toString().indexOf('timo24.de')) {
         // listen to changes
         $(window).on('hashchange', function (e) {
-            if (window.location.hash.indexOf('auswertung_projektauswertung.jsp') > 0) {
-                injectButton();
+            var found = false;
+            injectionLocationPatterns.forEach(function (p) {
+                if (window.location.hash.indexOf(p) > 0) {
+                    found = true;
+                }
+            });
+            if (found) {
+                injectButtons();
             }
         });
 
         // check now
-        if (window.location.hash.indexOf('auswertung_projektauswertung.jsp') > 0) {
-            injectButton();
+        injectionLocationPatterns.forEach(function (p) {
+            if (window.location.hash.indexOf(p) > 0) {
+                found = true;
+            }
+        });
+        if (found) {
+            injectButtons();
         }
     }
 }
